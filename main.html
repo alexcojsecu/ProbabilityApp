@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Probability Simulations</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0056b3; /* Educational blue */
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .experiment {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fdfdfd;
+        }
+        .controls label, .controls input, .controls button {
+            margin-right: 10px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .controls input[type="number"] {
+            width: 80px;
+        }
+        .controls button {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9f5ff; /* Light blue background for results */
+            border: 1px solid #b3d7ff;
+            border-radius: 4px;
+        }
+        .results p {
+            margin: 5px 0;
+        }
+        .chart-container {
+            margin-top: 20px;
+            position: relative;
+            height: 300px; /* Give canvas a height */
+            width: 100%;
+        }
+        canvas {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+        .explanation {
+            font-style: italic;
+            color: #555;
+            margin-top: 10px;
+        }
+        strong {
+            color: #d9534f; /* Highlight results */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interactive Probability Experiments</h1>
+        <p>Explore basic probability concepts through interactive simulations. Adjust the number of trials and observe how the results converge towards theoretical probabilities.</p>
+        <p>Current Date: <span id="currentDate"></span></p>
+
+        <div class="experiment">
+            <h2>1. Coin Flip Simulation</h2>
+            <div class="controls">
+                <label for="numFlips">Number of Flips:</label>
+                <input type="number" id="numFlips" value="100" min="1" max="1000000">
+                <button id="flipButton">Flip Coins</button>
+            </div>
+            <div id="coinResults" class="results" style="display: none;">
+                <p>Total Flips: <span id="totalFlips"></span></p>
+                <p>Heads: <strong id="headsCount"></strong> (<span id="headsPercent"></span>%) - Theoretical: 50%</p>
+                <p>Tails: <strong id="tailsCount"></strong> (<span id="tailsPercent"></span>%) - Theoretical: 50%</p>
+            </div>
+            <div class="chart-container">
+                <canvas id="coinChart"></canvas>
+            </div>
+            <p class="explanation">A fair coin has a 50% chance of landing heads and a 50% chance of landing tails. As you increase the number of flips, the observed percentages should get closer to 50% (Law of Large Numbers).</p>
+        </div>
+
+        <div class="experiment">
+            <h2>2. Dice Roll Simulation (Single 6-Sided Die)</h2>
+            <div class="controls">
+                <label for="numRolls">Number of Rolls:</label>
+                <input type="number" id="numRolls" value="100" min="1" max="1000000">
+                <button id="rollButton">Roll Dice</button>
+            </div>
+            <div id="diceResults" class="results" style="display: none;">
+                <p>Total Rolls: <span id="totalRolls"></span></p>
+                <p>Theoretical Probability per side: 1/6 ≈ 16.67%</p>
+                <ul id="diceCounts" style="list-style: none; padding-left: 0;"></ul>
+            </div>
+            <div class="chart-container">
+                <canvas id="diceChart"></canvas>
+            </div>
+            <p class="explanation">A fair six-sided die has an equal probability (1/6 or ~16.67%) of landing on any face. With more rolls, the distribution of outcomes should become more uniform.</p>
+        </div>
+
+        <div class="experiment">
+            <h2>3. Distribution of Dice Sums</h2>
+            <div class="controls">
+                 <label for="numDice">Number of Dice per Roll:</label>
+                <input type="number" id="numDice" value="2" min="1" max="10">
+                <label for="numTrials">Number of Trials (Rolls):</label>
+                <input type="number" id="numTrials" value="1000" min="1" max="100000">
+                <button id="distributionButton">Run Trials</button>
+            </div>
+             <div id="distributionResults" class="results" style="display: none;">
+                <p>Trials Ran: <span id="totalTrials"></span> rolling <span id="numDiceRolled"></span> dice each time.</p>
+                <p>Min Possible Sum: <span id="minSum"></span>, Max Possible Sum: <span id="maxSum"></span></p>
+            </div>
+            <div class="chart-container">
+                <canvas id="distributionChart"></canvas>
+            </div>
+            <p class="explanation">This simulates rolling multiple dice and summing their results over many trials. Notice how the distribution of sums tends towards a bell shape (Normal Distribution) as the number of dice or trials increases. This illustrates the Central Limit Theorem - sums of independent random variables tend towards a normal distribution.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Variables & Chart Instances ---
+        let coinChartInstance, diceChartInstance, distributionChartInstance;
+        const today = new Date();
+        document.getElementById('currentDate').textContent = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', timeZoneName: 'short' });
+
+
+        // --- Helper Functions ---
+        function formatPercent(value, total) {
+            return total === 0 ? '0.00' : ((value / total) * 100).toFixed(2);
+        }
+
+        function getRandomInt(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // --- Chart Initialization ---
+        function initializeCharts() {
+            const coinCtx = document.getElementById('coinChart').getContext('2d');
+            coinChartInstance = new Chart(coinCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Heads', 'Tails'],
+                    datasets: [{
+                        label: 'Count',
+                        data: [0, 0],
+                        backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)'],
+                        borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } },
+                    plugins: { legend: { display: false }, title: { display: true, text: 'Coin Flip Outcomes' } }
+                }
+            });
+
+            const diceCtx = document.getElementById('diceChart').getContext('2d');
+            diceChartInstance = new Chart(diceCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['1', '2', '3', '4', '5', '6'],
+                    datasets: [{
+                        label: 'Count',
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } }, x: { title: { display: true, text: 'Dice Face' } } },
+                    plugins: { legend: { display: false }, title: { display: true, text: 'Dice Roll Outcomes' } }
+                }
+            });
+
+             const distributionCtx = document.getElementById('distributionChart').getContext('2d');
+             distributionChartInstance = new Chart(distributionCtx, {
+                type: 'bar', // Use bar chart for histogram-like view
+                data: {
+                    labels: [], // Will be populated with sums
+                    datasets: [{
+                        label: 'Frequency of Sum',
+                        data: [], // Will be populated with counts
+                        backgroundColor: 'rgba(153, 102, 255, 0.6)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1,
+                        barPercentage: 1.0, // Make bars touch for histogram feel
+                        categoryPercentage: 0.95
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Frequency' } },
+                        x: { title: { display: true, text: 'Sum of Dice' } }
+                    },
+                     plugins: { legend: { display: false }, title: { display: true, text: 'Distribution of Dice Sums' } }
+                }
+            });
+        }
+
+        // --- Coin Flip Simulation ---
+        function simulateCoinFlips() {
+            const numFlips = parseInt(document.getElementById('numFlips').value);
+            if (isNaN(numFlips) || numFlips <= 0) {
+                alert("Please enter a valid number of flips (positive integer).");
+                return;
+            }
+
+            let heads = 0;
+            let tails = 0;
+
+            for (let i = 0; i < numFlips; i++) {
+                if (Math.random() < 0.5) {
+                    heads++;
+                } else {
+                    tails++;
+                }
+            }
+
+            // Update results display
+            document.getElementById('totalFlips').textContent = numFlips;
+            document.getElementById('headsCount').textContent = heads;
+            document.getElementById('tailsCount').textContent = tails;
+            document.getElementById('headsPercent').textContent = formatPercent(heads, numFlips);
+            document.getElementById('tailsPercent').textContent = formatPercent(tails, numFlips);
+            document.getElementById('coinResults').style.display = 'block';
+
+            // Update chart
+            coinChartInstance.data.datasets[0].data = [heads, tails];
+            coinChartInstance.update();
+        }
+
+        // --- Dice Roll Simulation ---
+        function simulateDiceRolls() {
+            const numRolls = parseInt(document.getElementById('numRolls').value);
+             if (isNaN(numRolls) || numRolls <= 0) {
+                alert("Please enter a valid number of rolls (positive integer).");
+                return;
+            }
+
+            const counts = [0, 0, 0, 0, 0, 0]; // Index 0 for face 1, etc.
+
+            for (let i = 0; i < numRolls; i++) {
+                const roll = getRandomInt(1, 6);
+                counts[roll - 1]++;
+            }
+
+            // Update results display
+            document.getElementById('totalRolls').textContent = numRolls;
+            const resultsList = document.getElementById('diceCounts');
+            resultsList.innerHTML = ''; // Clear previous results
+            counts.forEach((count, index) => {
+                const face = index + 1;
+                const percent = formatPercent(count, numRolls);
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `Face ${face}: <strong>${count}</strong> (${percent}%)`;
+                resultsList.appendChild(listItem);
+            });
+            document.getElementById('diceResults').style.display = 'block';
+
+            // Update chart
+            diceChartInstance.data.datasets[0].data = counts;
+            diceChartInstance.update();
+        }
+
+         // --- Distribution Simulation (Dice Sums) ---
+        function simulateDistribution() {
+            const numDice = parseInt(document.getElementById('numDice').value);
+            const numTrials = parseInt(document.getElementById('numTrials').value);
+
+            if (isNaN(numDice) || numDice <= 0 || numDice > 10) {
+                alert("Please enter a valid number of dice (1-10).");
+                return;
+            }
+             if (isNaN(numTrials) || numTrials <= 0) {
+                alert("Please enter a valid number of trials (positive integer).");
+                return;
+            }
+
+            const sumCounts = {}; // Use an object { sum: count }
+            const minSum = numDice;
+            const maxSum = numDice * 6;
+
+            // Initialize counts for all possible sums to 0
+            for (let s = minSum; s <= maxSum; s++) {
+                sumCounts[s] = 0;
+            }
+
+            // Run trials
+            for (let t = 0; t < numTrials; t++) {
+                let currentSum = 0;
+                for (let d = 0; d < numDice; d++) {
+                    currentSum += getRandomInt(1, 6);
+                }
+                sumCounts[currentSum]++;
+            }
+
+            // Prepare data for chart
+            const labels = Object.keys(sumCounts).map(Number).sort((a, b) => a - b); // Sorted numeric labels
+            const data = labels.map(sum => sumCounts[sum]); // Corresponding counts in sorted order
+
+             // Update results display
+            document.getElementById('totalTrials').textContent = numTrials;
+            document.getElementById('numDiceRolled').textContent = numDice;
+            document.getElementById('minSum').textContent = minSum;
+            document.getElementById('maxSum').textContent = maxSum;
+            document.getElementById('distributionResults').style.display = 'block';
+
+            // Update chart
+            distributionChartInstance.data.labels = labels.map(String); // Chart.js needs string labels usually
+            distributionChartInstance.data.datasets[0].data = data;
+            distributionChartInstance.update();
+        }
+
+        // --- Event Listeners ---
+        document.getElementById('flipButton').addEventListener('click', simulateCoinFlips);
+        document.getElementById('rollButton').addEventListener('click', simulateDiceRolls);
+        document.getElementById('distributionButton').addEventListener('click', simulateDistribution);
+
+        // --- Initial Setup ---
+        window.onload = () => {
+            initializeCharts();
+            // Optional: Run a small simulation on load?
+            // simulateCoinFlips();
+            // simulateDiceRolls();
+            // simulateDistribution();
+        };
+
+    </script>
+</body>
+</html>
